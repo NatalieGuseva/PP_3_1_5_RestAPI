@@ -1,71 +1,56 @@
 package org.example;
 
+
 import org.example.model.User;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Collections;
+import java.util.List;
 
 @Component
 public class Communication {
 
-    @Autowired
-    private RestTemplate restTemplate;
-    private static final String BASE_URL = "http://94.198.50.185:7081/api/users";
-    private static String sessionId;
-    private final HttpHeaders headers = new HttpHeaders();
-    static String result = "";
+    private RestTemplate restTemplate = new RestTemplate();
 
-    public void getAllUsers() {
-        ResponseEntity<String> responseEntity = restTemplate
-                .exchange(BASE_URL, HttpMethod.GET, null,
-                        new ParameterizedTypeReference<String>() {
+    private HttpHeaders httpHeaders = new HttpHeaders();
+    private final String URL = "http://94.198.50.185:7081/api/users";
+    private String SESSION_ID;
+
+    public List<User> getAllUsers() {
+
+        ResponseEntity<List<User>> responseEntity =
+                restTemplate.exchange(URL, HttpMethod.GET, null,
+                        new ParameterizedTypeReference<>() {
                         });
-        String setCookieHeader = responseEntity.getHeaders().getFirst("Set-Cookie");
-        if (setCookieHeader != null) {
-            sessionId = setCookieHeader.split(";")[0];
-            System.out.println("Полученный sessionId: " + sessionId);
-        } else {
-            System.out.println("Session ID не найден в заголовках ответа.");
-        }
+
+        List<User> allUsers = responseEntity.getBody();
+        List<String> strings = responseEntity.getHeaders().get("Set-Cookie");
+        SESSION_ID = strings.get(0).substring(0, strings.get(0).indexOf(';'));
+        return allUsers;
     }
 
-    public void saveUser() {
-        headers.put(HttpHeaders.COOKIE, Collections.singletonList(sessionId));
-        headers.add(HttpHeaders.CONTENT_TYPE, "application/json");
-
-        User user = new User("Thomas", "Shelby", (byte) 27);
-        user.setId(3L);
-        HttpEntity<User> entity = new HttpEntity<>(user, headers);
-        ResponseEntity<String> responseEntity = restTemplate.exchange(BASE_URL, HttpMethod.POST, entity, String.class);
-        result = result + responseEntity.getBody();
+    public void saveUsers(User user) {
+        httpHeaders.set("Cookie", SESSION_ID);
+        HttpEntity<User> entity = new HttpEntity<>(user, httpHeaders);
+        ResponseEntity<String> exchange = restTemplate.exchange(URL, HttpMethod.POST, entity, String.class);
+        System.out.println("exchange.getBody()1 = " + exchange.getBody());
     }
 
-    public void updateUser() {
-        User user = new User("Thomas", "Shelby", (byte) 29);
-        user.setId(3L);
-        HttpEntity<User> entity = new HttpEntity<>(user, headers);
-        String response = restTemplate.exchange(BASE_URL, HttpMethod.PUT, entity, String.class).getBody();
-        result = result + response;
-        new ResponseEntity<>(response, HttpStatus.OK);
+    public void updateUsers(User user) {
+        HttpEntity<User> entity = new HttpEntity<>(user, httpHeaders);
+        ResponseEntity<String> exchange = restTemplate.exchange(URL, HttpMethod.PUT, entity, String.class);
+        System.out.println("exchange.getBody()2 = " + exchange.getBody());
     }
 
-    public String deleteUser(Long id) {
-        HttpEntity<User> entity = new HttpEntity<>(headers);
-        String request = restTemplate.exchange(BASE_URL + "/" + id, HttpMethod.DELETE, entity, String.class).getBody();
-        result = result + request;
-        new ResponseEntity<>(request, HttpStatus.OK);
-        return result;
-    }
-
-    public String finalApp() {
-        if (result.length() == 18) {
-            return "Mission completed! - true";
-        } else {
-            return "Mission completed! - false";
-        }
+    public void deleteUsers(Long id) {
+        HttpEntity<User> entity = new HttpEntity<>(httpHeaders);
+        ResponseEntity<String> exchange = restTemplate.exchange(URL + "/" + id, HttpMethod.DELETE, entity, String.class);
+        System.out.println("exchange.getBody()3 = " + exchange.getBody());
     }
 }
+
